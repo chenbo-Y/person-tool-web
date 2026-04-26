@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>本地视频浏览</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/css/video.css?v=4" />
+    <link rel="stylesheet" href="/css/ui-bootstrap.css?v=1" />
+    <link rel="stylesheet" href="/css/file-tag-panel.css?v=2" />
+  </head>
+  <body>
+    <div class="video-page container-xl py-3">
+      <nav class="top-nav" aria-label="页面切换">
+        <a href="/" class="nav-link">关键字搜索</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/manga.html" class="nav-link">漫画式图片浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/video.html" class="nav-link nav-link-current">视频浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/overview.html" class="nav-link">标注一览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/task.html" class="nav-link">任务</a>
+      </nav>
+
+      <header class="video-header">
+        <h1>本地视频浏览</h1>
+        <p class="sub">
+          仅扫描<strong>当前文件夹一层</strong>（不含子目录），按文件名排序。浏览器内嵌播放器，服务端按字节区间（Range）流式传输，可拖动进度。支持常见容器如
+          mp4 / webm / mov 等。<strong>.mov</strong>若为 iPhone/相机常见的 H.264，一般可播；若为
+          ProRes、部分 HEVC 或旧编码，Chrome/Edge 可能<strong>黑屏 0:00</strong>（与文件名中的空格、<code>@</code> 无关），请用本地播放器。部分容器（mkv、avi）亦取决于浏览器。可使用
+          <code>video.html?path=目录绝对路径</code> 自动填入并加载。标签与备注与搜索、漫画页共用
+          <code>data/file-tags.json</code>。每条视频旁可<strong>重命名</strong>（同目录改名，标签随路径迁移）或<strong>删除文件</strong>（从磁盘永久删除，不可撤销）。
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <label class="field">
+          <span>视频目录（绝对路径）</span>
+          <input
+            id="videoDirPath"
+            type="text"
+            placeholder="例如 C:\Videos\某文件夹"
+            autocomplete="off"
+          />
+        </label>
+        <button type="button" class="btn-load" id="videoLoadBtn">加载</button>
+      </div>
+
+      <p id="videoStatus" class="status-line" aria-live="polite"></p>
+      <main id="videoList" class="video-list" aria-label="视频列表"></main>
+    </div>
+    <button type="button" id="backToTopBtn" class="back-to-top" aria-label="回到顶部" hidden>
+      回到顶部
+    </button>
+    <script src="/js/i18n.js?v=1"></script>
+    <script src="/js/file-tag-panel.js?v=2"></script>
+    <script src="/js/video.js?v=7"></script>
+  </body>
+</html>

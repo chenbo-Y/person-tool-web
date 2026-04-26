@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>任务管理</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/css/task.css?v=1" />
+    <link rel="stylesheet" href="/css/ui-bootstrap.css?v=1" />
+  </head>
+  <body>
+    <div class="task-page container-xl py-3">
+      <nav class="top-nav" aria-label="页面切换">
+        <a href="/" class="nav-link">关键字搜索</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/manga.html" class="nav-link">漫画式图片浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/video.html" class="nav-link">视频浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/overview.html" class="nav-link">标注一览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/task.html" class="nav-link nav-link-current">任务</a>
+      </nav>
+
+      <header class="task-header">
+        <h1 id="taskTitle">任务管理</h1>
+        <p id="taskSub" class="sub">
+          可创建任务并记录任务类型、详细说明和截止时间。任务存储在本机 <code>data/tasks.json</code>。
+        </p>
+      </header>
+      <section class="task-calendar-panel" aria-label="任务日历">
+        <div class="task-calendar-head">
+          <h2 id="taskCalendarTitle">任务日历</h2>
+          <div class="task-calendar-nav">
+            <label class="task-calendar-ym">
+              <span id="taskCalYearLabel">年</span>
+              <select id="taskCalYearSelect"></select>
+            </label>
+            <label class="task-calendar-ym">
+              <span id="taskCalMonthLabel">月</span>
+              <select id="taskCalMonthSelect"></select>
+            </label>
+            <label class="task-calendar-ym">
+              <span id="taskCalRegionLabel">地区</span>
+              <select id="taskCalRegionSelect">
+                <option value="CN">中国</option>
+                <option value="JP">日本</option>
+                <option value="BOTH">中日同时</option>
+              </select>
+            </label>
+            <button type="button" id="taskCalPrevBtn">上月</button>
+            <button type="button" id="taskCalTodayBtn">本月</button>
+            <button type="button" id="taskCalNextBtn">下月</button>
+          </div>
+        </div>
+        <div id="taskCalendarMonthLabel" class="task-calendar-month"></div>
+        <div id="taskCalendarWeek" class="task-calendar-week"></div>
+        <div id="taskCalendarGrid" class="task-calendar-grid"></div>
+        <div class="task-calendar-legend">
+          <span class="legend-item legend-workday" id="taskCalLegendWorkday">工作日</span>
+          <span class="legend-item legend-weekend" id="taskCalLegendWeekend">周末</span>
+          <span class="legend-item legend-holiday" id="taskCalLegendHoliday">休息日</span>
+        </div>
+        <p id="taskCalendarHint" class="task-calendar-hint"></p>
+      </section>
+
+      <form id="taskForm" class="task-form">
+        <label>
+          <span id="taskFieldTitle">任务</span>
+          <input id="taskTitleInput" type="text" maxlength="120" required />
+        </label>
+        <label>
+          <span id="taskFieldType">任务类型</span>
+          <input id="taskTypeInput" type="text" maxlength="40" />
+        </label>
+        <label>
+          <span id="taskFieldTags">标签</span>
+          <input id="taskTagInput" type="text" maxlength="240" placeholder="例如：前端,紧急,联调" />
+        </label>
+        <label>
+          <span id="taskFieldDue">截止时间</span>
+          <input id="taskDueInput" type="datetime-local" />
+        </label>
+        <label class="task-detail-field">
+          <span id="taskFieldDetail">任务详细</span>
+          <small id="taskFieldDetailHint" class="task-hint">支持 Markdown（如标题、列表、代码、链接）</small>
+          <textarea id="taskDetailInput" rows="3" maxlength="3000"></textarea>
+        </label>
+        <button type="submit" id="taskSubmitBtn">新增任务</button>
+      </form>
+      <details class="md-guide">
+        <summary id="taskMdGuideTitle">Markdown 语法说明</summary>
+        <pre id="taskMdGuideBody" class="md-guide-body"></pre>
+      </details>
+
+      <p id="taskStatus" class="status-line" aria-live="polite"></p>
+      <div class="task-controls">
+        <label class="task-filter-field">
+          <span id="taskFilterStatusLabel">状态</span>
+          <select id="taskStatusFilter">
+            <option value="all">全部</option>
+            <option value="todo">未完成</option>
+            <option value="done">已完成</option>
+          </select>
+        </label>
+        <label class="task-filter-field">
+          <span id="taskFilterTypeLabel">任务类型</span>
+          <select id="taskTypeFilter">
+            <option value="">全部类型</option>
+          </select>
+        </label>
+        <label class="task-filter-field">
+          <span id="taskFilterTagLabel">标签</span>
+          <div id="taskTagFilterChips" class="task-tag-filter-chips"></div>
+        </label>
+        <label class="task-filter-field">
+          <span id="taskFilterTagModeLabel">标签匹配</span>
+          <select id="taskTagMatchMode">
+            <option value="or">OR（任一）</option>
+            <option value="and">AND（全部）</option>
+          </select>
+        </label>
+        <label class="task-filter-field task-filter-keyword">
+          <span id="taskFilterKeywordLabel">关键词</span>
+          <input id="taskKeywordFilter" type="search" placeholder="筛选任务名/类型/详情" />
+        </label>
+        <button type="button" id="taskExportBtn">导出Excel</button>
+      </div>
+      <section id="taskList" class="task-list"></section>
+    </div>
+    <script src="/js/i18n.js?v=1"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="/js/task.js?v=1"></script>
+  </body>
+</html>

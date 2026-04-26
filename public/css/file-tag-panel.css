@@ -1,0 +1,152 @@
+/* 标签面板：依赖 --border / --text / --muted / --panel / --accent；背景用 --bg 或 --reader-bg */
+.file-tag-panel {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 0.85rem;
+}
+
+.file-tag-head {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.file-tag-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.file-tag-score-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.file-tag-score-select {
+  min-width: 7.2rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg, var(--reader-bg));
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.file-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.file-tags-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  padding: 0.15rem 0.35rem 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg, var(--reader-bg));
+  color: var(--text);
+}
+
+.tag-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
+}
+
+.tag-chip-remove {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tag-chip-remove:hover {
+  color: #f87171;
+  background: var(--match, rgba(248, 113, 113, 0.12));
+}
+
+.file-tag-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.file-tag-add input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg, var(--reader-bg));
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.tag-add-btn,
+.tag-note-save,
+.tag-score-save {
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tag-add-btn:hover,
+.tag-note-save:hover,
+.tag-score-save:hover {
+  filter: brightness(1.08);
+}
+
+.file-tag-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.tag-note-input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg, var(--reader-bg));
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.comic-page .file-tag-panel {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}

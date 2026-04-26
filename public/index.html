@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>本地关键字搜索</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/ui-bootstrap.css?v=1" />
+    <link rel="stylesheet" href="/css/file-tag-panel.css?v=2" />
+  </head>
+  <body>
+    <div class="page container-xl py-3">
+      <nav class="top-nav" aria-label="页面切换">
+        <a href="/" class="nav-link nav-link-current">关键字搜索</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/manga.html" class="nav-link">漫画式图片浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/video.html" class="nav-link">视频浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/overview.html" class="nav-link">标注一览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/task.html" class="nav-link">任务</a>
+      </nav>
+      <header class="header">
+        <h1>本地关键字搜索</h1>
+        <p class="sub">
+          默认只匹配「文件名与路径」（不读磁盘内容，速度快）。勾选「搜索文件内容」后才会按编码解码正文；PDF
+          等二进制仍只能匹配文件名。点击结果中的路径可在资源管理器中打开并定位到该文件。每条结果可添加<strong>标签与备注</strong>，保存在本机项目目录下的
+          <code>data/file-tags.json</code>（与浏览器 localStorage 无关）。顶栏<strong>标注一览</strong>可集中查看已保存的路径、标签与描述。
+        </p>
+      </header>
+
+      <form id="form" class="form">
+        <label class="field">
+          <span>根目录（绝对路径）</span>
+          <input
+            id="root"
+            type="text"
+            placeholder="例如 C:\Users\你\Projects\my-app"
+            autocomplete="off"
+            required
+          />
+        </label>
+        <label class="field">
+          <span>关键字或正则</span>
+          <input
+            id="keyword"
+            type="search"
+            placeholder="要查找的内容"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            required
+          />
+        </label>
+        <div class="recent-block" id="recentBlock">
+          <div class="recent-head">
+            <span class="recent-title">本页最近关键字</span>
+            <button type="button" class="recent-clear" id="recentClear" title="清空全部记录">
+              清空全部
+            </button>
+          </div>
+          <p class="recent-hint">
+            此处记录保存在本机浏览器（可删除）。输入框自带的「保存的信息」来自浏览器自动填充，需在浏览器设置里管理。
+          </p>
+          <div id="recentList" class="recent-list"></div>
+        </div>
+        <div class="row">
+          <label class="check"><input id="case" type="checkbox" /> 区分大小写</label>
+          <label class="check"><input id="regex" type="checkbox" /> 使用正则</label>
+        </div>
+        <div class="row">
+          <label class="check"
+            ><input id="searchName" type="checkbox" checked /> 搜索文件名与路径</label
+          >
+          <label class="check"
+            ><input id="searchContent" type="checkbox" /> 搜索文件内容</label
+          >
+        </div>
+        <label class="field">
+          <span>文件编码（仅在勾选「搜索文件内容」时生效）</span>
+          <select id="encoding" class="select">
+            <option value="auto" selected>自动探测（chardet）</option>
+            <option value="utf-8">UTF-8</option>
+            <option value="gb18030">GB18030（中文 Windows 常见）</option>
+            <option value="gbk">GBK</option>
+            <option value="gb2312">GB2312</option>
+            <option value="big5">Big5（繁体）</option>
+            <option value="shift_jis">Shift_JIS（日文）</option>
+            <option value="euc-jp">EUC-JP（日文）</option>
+            <option value="euc-kr">EUC-KR（韩文）</option>
+            <option value="utf-16le">UTF-16 LE</option>
+            <option value="utf-16be">UTF-16 BE</option>
+            <option value="windows-1252">Windows-1252（西欧）</option>
+            <option value="latin1">Latin1 / ISO-8859-1</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>额外忽略的目录名（逗号分隔，可选）</span>
+          <input id="ignore" type="text" placeholder="例如 vendor,.cache" />
+        </label>
+        <button type="submit" id="submit">开始搜索</button>
+      </form>
+
+      <p id="status" class="status" aria-live="polite"></p>
+
+      <section id="summary" class="summary hidden"></section>
+      <section id="out" class="results"></section>
+    </div>
+    <script src="/js/i18n.js?v=1"></script>
+    <script src="/js/file-tag-panel.js?v=2"></script>
+    <script src="/js/app.js?v=12"></script>
+  </body>
+</html>
