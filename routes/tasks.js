@@ -6,11 +6,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TASKS_FILE = process.env.KW_WEB_TASKS_FILE
   ? path.resolve(process.env.KW_WEB_TASKS_FILE)
   : path.join(__dirname, "..", "data", "tasks.json");
-const TASK_ASSET_DIR = process.env.KW_WEB_TASK_ASSET_DIR
-  ? path.resolve(process.env.KW_WEB_TASK_ASSET_DIR)
-  : path.join(__dirname, "..", "data", "task-assets");
+/** 各任务附件目录的父路径：磁盘为 data/task/<taskId>/... */
+const TASK_FILES_BASE = process.env.KW_WEB_TASK_FILES_BASE?.trim()
+  ? path.resolve(process.env.KW_WEB_TASK_FILES_BASE.trim())
+  : path.join(__dirname, "..", "data", "task");
+/** 旧版扁平目录 data/task-assets/，仅用于读取历史 Markdown 中的链接 */
+const LEGACY_TASK_ASSET_DIR = process.env.KW_WEB_TASK_LEGACY_ASSETS?.trim()
+  ? path.resolve(process.env.KW_WEB_TASK_LEGACY_ASSETS.trim())
+  : process.env.KW_WEB_TASK_ASSET_DIR?.trim()
+    ? path.resolve(process.env.KW_WEB_TASK_ASSET_DIR.trim())
+    : path.join(__dirname, "..", "data", "task-assets");
 // 单进程内写队列：串行化所有 tasks.json 写入，避免并发覆盖
 let writeChain = Promise.resolve();
+
+function isValidTaskId(id) {
+  return /^task_[a-z0-9_]+$/i.test(String(id || "").trim());
+}
+
+async function taskExistsById(taskId) {
+  const items = await readTasksRaw();
+  return items.some((x) => String(x.id) === String(taskId));
+}
 
 function normalizeText(v, max = 500) {
   const s = String(v ?? "").trim();
@@ -112,6 +128,27 @@ function mimeByExt(extWithDot) {
   return "application/octet-stream";
 }
 
+/** 下载时使用的展示文件名（去掉路径与控制字符） */
+function sanitizeDownloadBasename(name) {
+  let s = path.basename(String(name || "").trim()).replace(/[\x00-\x1f\\/:*?"<>|]/g, "_");
+  if (s.length > 240) s = s.slice(0, 240);
+  return s;
+}
+
+/** RFC 5987：让浏览器保存为上传时的原始文件名，而不是磁盘上的随机名 */
+function buildAttachmentContentDisposition(displayName, storedBasename) {
+  const name =
+    sanitizeDownloadBasename(displayName) || sanitizeDownloadBasename(storedBasename) || storedBasename;
+  const ascii = String(name)
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/"/g, "_")
+    .slice(0, 180);
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (ch) =>
+    `%${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+  );
+  return `attachment; filename="${ascii || "download"}"; filename*=UTF-8''${encoded}`;
+}
+
 function normalizeTaskInput(body) {
   const title = normalizeText(body?.title, 120);
   const type = normalizeText(body?.type, 40);
@@ -169,8 +206,12 @@ function normalizeProgressContent(body) {
 }
 
 export function registerTaskRoutes(app, { logger }) {
-  // 任务附件上传：前端以 DataURL 传文件（图片/文档），后端落盘后返回可访问 URL
+  // 任务附件：写入 data/task/<taskId>/，URL 为 /api/task-files/<taskId>/<file>
   async function handleTaskFileUpload(req, res) {
+    const taskId = String(req.params.taskId || "").trim();
+    if (!isValidTaskId(taskId)) return res.status(400).json({ error: "taskId 无效" });
+    if (!(await taskExistsById(taskId))) return res.status(404).json({ error: "任务不存在" });
+
     const dataUrl = String(req.body?.dataUrl || "");
     const originalName = String(req.body?.name || "").trim();
     if (!dataUrl.startsWith("data:")) {
@@ -193,57 +234,107 @@ export function registerTaskRoutes(app, { logger }) {
       return res.status(400).json({ error: "文件大小无效或超过 20MB" });
     }
     try {
-      await fs.mkdir(TASK_ASSET_DIR, { recursive: true });
-      const name = `task_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      await fs.writeFile(path.join(TASK_ASSET_DIR, name), buf);
-      logger?.info?.("task-file-create", { name, bytes: buf.length });
-      res.json({ ok: true, url: `/api/task-files/${encodeURIComponent(name)}` });
+      const dir = path.join(TASK_FILES_BASE, taskId);
+      await fs.mkdir(dir, { recursive: true });
+      const name = `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const fullPath = path.join(dir, name);
+      await fs.writeFile(fullPath, buf);
+      const orig = sanitizeDownloadBasename(originalName);
+      if (orig) {
+        const metaPath = path.join(dir, `${path.parse(name).name}.meta.json`);
+        await fs.writeFile(metaPath, JSON.stringify({ originalName: orig }), "utf8");
+      }
+      logger?.info?.("task-file-create", { taskId, name, bytes: buf.length });
+      const url = `/api/task-files/${encodeURIComponent(taskId)}/${encodeURIComponent(name)}`;
+      res.json({ ok: true, url });
     } catch (e) {
       res.status(500).json({ error: e.message || "保存附件失败" });
     }
   }
 
-  app.post("/api/task-files", handleTaskFileUpload);
-  app.post("/api/task-assets", handleTaskFileUpload);
+  app.post("/api/tasks/:taskId/task-files", handleTaskFileUpload);
+  app.post("/api/tasks/:taskId/task-assets", handleTaskFileUpload);
 
-  async function handleTaskFileRead(req, res) {
-    // 仅允许 basename，防止路径穿越读取任意文件
-    const raw = String(req.params.name || "").trim();
-    const safe = path.basename(raw);
-    if (!safe || safe !== raw) return res.status(400).send("bad name");
-    const full = path.join(TASK_ASSET_DIR, safe);
+  async function sendTaskFileResponse(res, fullPath, storedBasename, metaDir) {
     let st;
     try {
-      st = await fs.stat(full);
+      st = await fs.stat(fullPath);
     } catch {
       return res.status(404).send("not found");
     }
     if (!st.isFile()) return res.status(404).send("not found");
-    const ext = path.extname(safe).toLowerCase();
+    const ext = path.extname(storedBasename).toLowerCase();
     const mime = mimeByExt(ext);
+    let downloadLabel = storedBasename;
     try {
-      const buf = await fs.readFile(full);
+      const metaPath = path.join(metaDir, `${path.parse(storedBasename).name}.meta.json`);
+      const metaRaw = await fs.readFile(metaPath, "utf8");
+      const meta = JSON.parse(metaRaw);
+      if (meta && typeof meta.originalName === "string" && meta.originalName.trim()) {
+        const cand = sanitizeDownloadBasename(meta.originalName);
+        if (cand) downloadLabel = cand;
+      }
+    } catch {
+      /* 无元数据 */
+    }
+    try {
+      const buf = await fs.readFile(fullPath);
       res.setHeader("Content-Type", mime);
       res.setHeader("Cache-Control", "private, max-age=3600");
+      if (!String(mime).toLowerCase().startsWith("image/")) {
+        res.setHeader("Content-Disposition", buildAttachmentContentDisposition(downloadLabel, storedBasename));
+      }
       res.send(buf);
     } catch {
       res.status(500).send("read failed");
     }
   }
 
-  app.get("/api/task-files/:name", handleTaskFileRead);
-  app.get("/api/task-assets/:name", handleTaskFileRead);
+  async function handleTaskFileReadByTask(req, res) {
+    const taskId = path.basename(String(req.params.taskId || "").trim());
+    const rawFile = String(req.params.fileName || "").trim();
+    const safeFile = path.basename(rawFile);
+    if (!taskId || !isValidTaskId(taskId)) return res.status(400).send("bad task");
+    if (!safeFile || safeFile !== rawFile) return res.status(400).send("bad name");
+    if (safeFile.endsWith(".meta.json")) return res.status(404).send("not found");
+    const dir = path.join(TASK_FILES_BASE, taskId);
+    const full = path.join(dir, safeFile);
+    await sendTaskFileResponse(res, full, safeFile, dir);
+  }
+
+  async function handleTaskFileReadLegacy(req, res) {
+    const raw = String(req.params.name || "").trim();
+    const safe = path.basename(raw);
+    if (!safe || safe !== raw) return res.status(400).send("bad name");
+    if (safe.endsWith(".meta.json")) return res.status(404).send("not found");
+    const full = path.join(LEGACY_TASK_ASSET_DIR, safe);
+    await sendTaskFileResponse(res, full, safe, LEGACY_TASK_ASSET_DIR);
+  }
+
+  app.get("/api/task-files/:taskId/:fileName", handleTaskFileReadByTask);
+  app.get("/api/task-assets/:taskId/:fileName", handleTaskFileReadByTask);
+  app.get("/api/task-files/:name", handleTaskFileReadLegacy);
+  app.get("/api/task-assets/:name", handleTaskFileReadLegacy);
 
   app.get("/api/tasks", async (_req, res) => {
     try {
-      const items = await readTasksRaw();
-      // 兼容历史数据：旧任务可能没有 progress 字段
-      for (const it of items) {
-        if (!Array.isArray(it.progress)) it.progress = [];
-        if (typeof it.completedAt !== "string") it.completedAt = "";
-        if (!Array.isArray(it.tags)) it.tags = [];
-      }
-      items.sort(taskSort);
+      const items = await withWriteLock(async () => {
+        const arr = await readTasksRaw();
+        let dirty = false;
+        for (const it of arr) {
+          if (!Array.isArray(it.progress)) it.progress = [];
+          if (typeof it.completedAt !== "string") it.completedAt = "";
+          if (!Array.isArray(it.tags)) it.tags = [];
+          if (typeof it.createdAt !== "string" || !it.createdAt.trim()) {
+            it.createdAt =
+              typeof it.updatedAt === "string" && it.updatedAt.trim() ? it.updatedAt : nowIso();
+            dirty = true;
+          }
+        }
+        if (dirty) await writeTasksRaw(arr);
+        arr.sort(taskSort);
+        return arr;
+      });
       res.json({ count: items.length, items });
     } catch (e) {
       res.status(500).json({ error: e.message || "读取任务失败" });
@@ -258,6 +349,7 @@ export function registerTaskRoutes(app, { logger }) {
       const created = await withWriteLock(async () => {
         const items = await readTasksRaw();
         const now = nowIso();
+        // createdAt 仅服务端生成，不接受客户端覆盖
         const task = {
           id: genTaskId(),
           ...input,
@@ -295,10 +387,17 @@ export function registerTaskRoutes(app, { logger }) {
         } else if (input.status !== "done") {
           completedAt = "";
         }
+        const preservedCreated =
+          typeof prev.createdAt === "string" && prev.createdAt.trim()
+            ? prev.createdAt.trim()
+            : typeof prev.updatedAt === "string" && prev.updatedAt.trim()
+              ? prev.updatedAt.trim()
+              : nowIso();
         const next = {
           ...prev,
           ...input,
           completedAt,
+          createdAt: preservedCreated,
           updatedAt: nowIso(),
         };
         items[idx] = next;
@@ -325,6 +424,7 @@ export function registerTaskRoutes(app, { logger }) {
         return true;
       });
       if (!ok) return res.status(404).json({ error: "任务不存在" });
+      await fs.rm(path.join(TASK_FILES_BASE, id), { recursive: true, force: true }).catch(() => {});
       logger?.info?.("task-delete", { id });
       res.json({ ok: true });
     } catch (e) {
@@ -344,10 +444,17 @@ export function registerTaskRoutes(app, { logger }) {
         if (!Array.isArray(task.progress)) task.progress = [];
         if (typeof task.completedAt !== "string") task.completedAt = "";
         if (!Array.isArray(task.tags)) task.tags = [];
+        let needWrite = false;
         if (ensureProgressIdsOnTask(task)) {
           task.updatedAt = nowIso();
-          await writeTasksRaw(items);
+          needWrite = true;
         }
+        if (typeof task.createdAt !== "string" || !task.createdAt.trim()) {
+          task.createdAt =
+            typeof task.updatedAt === "string" && task.updatedAt.trim() ? task.updatedAt : nowIso();
+          needWrite = true;
+        }
+        if (needWrite) await writeTasksRaw(items);
         task.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
         return task;
       });

@@ -42,6 +42,16 @@ body {
   padding: 0.8rem 0.9rem;
 }
 
+.task-card.task-card--todo {
+  background: color-mix(in srgb, var(--td-accent) 11%, var(--td-panel));
+  border-color: color-mix(in srgb, var(--td-accent) 26%, var(--td-border));
+}
+
+.task-card.task-card--done {
+  background: color-mix(in srgb, #34d399 9%, color-mix(in srgb, var(--td-bg) 22%, var(--td-panel)));
+  border-color: color-mix(in srgb, #34d399 18%, var(--td-border));
+}
+
 .progress-item.is-editing {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--td-accent) 45%, transparent);
 }

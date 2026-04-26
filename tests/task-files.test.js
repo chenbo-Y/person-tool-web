@@ -4,10 +4,22 @@ import { setupIsolatedServer } from "./helpers/test-server.js";
 
 const ctx = setupIsolatedServer();
 
-test("task file upload should return downloadable URL", async () => {
+async function createUploadHostTask() {
+  const r = await fetch(`${ctx.baseUrl}/api/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "upload-host", detail: "for file tests" }),
+  });
+  assert.equal(r.status, 200);
+  const j = await r.json();
+  return j.item.id;
+}
+
+test("task file upload should return downloadable URL under task directory", async () => {
+  const taskId = await createUploadHostTask();
   const plain = "hello from automated test";
   const dataUrl = `data:text/plain;base64,${Buffer.from(plain, "utf8").toString("base64")}`;
-  const uploadRes = await fetch(`${ctx.baseUrl}/api/task-files`, {
+  const uploadRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(taskId)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -18,7 +30,8 @@ test("task file upload should return downloadable URL", async () => {
   assert.equal(uploadRes.status, 200);
   const uploadBody = await uploadRes.json();
   assert.equal(uploadBody.ok, true);
-  assert.ok(String(uploadBody.url || "").startsWith("/api/task-files/"));
+  const u = String(uploadBody.url || "");
+  assert.ok(u.startsWith(`/api/task-files/${encodeURIComponent(taskId)}/`));
 
   const downloadRes = await fetch(`${ctx.baseUrl}${uploadBody.url}`);
   assert.equal(downloadRes.status, 200);
@@ -28,10 +41,14 @@ test("task file upload should return downloadable URL", async () => {
     downloadRes.headers.get("content-type") || "",
     /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|application\/vnd\.ms-excel/i,
   );
+  const cd = downloadRes.headers.get("content-disposition") || "";
+  assert.match(cd, /attachment/i);
+  assert.ok(cd.includes("report.xlsx"), "download filename should match upload originalName");
 });
 
 test("task file upload should reject invalid data url", async () => {
-  const res = await fetch(`${ctx.baseUrl}/api/task-files`, {
+  const taskId = await createUploadHostTask();
+  const res = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(taskId)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -45,20 +62,37 @@ test("task file upload should reject invalid data url", async () => {
   assert.ok(body.error.length > 0);
 });
 
-test("task file read should reject path traversal", async () => {
+test("task file upload should 404 when task does not exist", async () => {
+  const dataUrl = `data:text/plain;base64,${Buffer.from("x", "utf8").toString("base64")}`;
+  const res = await fetch(`${ctx.baseUrl}/api/tasks/task_notexist_zzzzzz/task-files`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl, name: "a.txt" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("task file read legacy single segment should reject path traversal", async () => {
   const res = await fetch(`${ctx.baseUrl}/api/task-files/..%2F..%2Fsecret.txt`);
   assert.equal(res.status, 400);
 });
 
-test("task file read should return 404 for missing file", async () => {
+test("task file read should return 404 for missing file (per-task path)", async () => {
+  const taskId = await createUploadHostTask();
+  const res = await fetch(`${ctx.baseUrl}/api/task-files/${encodeURIComponent(taskId)}/missing_zz.bin`);
+  assert.equal(res.status, 404);
+});
+
+test("task file read legacy should return 404 for missing flat file", async () => {
   const res = await fetch(`${ctx.baseUrl}/api/task-files/not_exists_abc_123.txt`);
   assert.equal(res.status, 404);
 });
 
 test("task file upload should reject oversized payload", async () => {
+  const taskId = await createUploadHostTask();
   const tooLarge = Buffer.alloc(20 * 1024 * 1024 + 1, 65);
   const dataUrl = `data:application/pdf;base64,${tooLarge.toString("base64")}`;
-  const res = await fetch(`${ctx.baseUrl}/api/task-files`, {
+  const res = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(taskId)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -66,14 +100,14 @@ test("task file upload should reject oversized payload", async () => {
       name: "large.pdf",
     }),
   });
-  // 可能被 express.json(1mb) 先拦截为 413，或被路由层拦截为 400；两者都符合预期。
   assert.equal([400, 413].includes(res.status), true);
 });
 
 test("task file upload should reject unsupported file type", async () => {
+  const taskId = await createUploadHostTask();
   const raw = Buffer.from("abc", "utf8");
   const dataUrl = `data:application/x-custom;base64,${raw.toString("base64")}`;
-  const res = await fetch(`${ctx.baseUrl}/api/task-files`, {
+  const res = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(taskId)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

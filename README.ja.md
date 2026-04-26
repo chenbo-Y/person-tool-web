@@ -42,7 +42,8 @@ npm start
 
 - タグ・メモ・評価の保存先: `data/file-tags.json`
 - タスクと進捗の保存先: `data/tasks.json`
-- タスク詳細画像の保存先: `data/task-assets/`
+- タスク添付（画像・ファイル）の保存先: `data/task/<タスクID>/`（タスク削除時にディレクトリごと削除）
+- 旧 Markdown 用のフラット保存先 `data/task-assets/` は読み取り専用で引き続き利用可能
 - 実行ログ: `logs/app-YYYY-MM-DD.log`
 
 環境変数:
