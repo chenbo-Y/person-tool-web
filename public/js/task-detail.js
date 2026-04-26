@@ -2,8 +2,12 @@ const detailTaskCardEl = document.getElementById("detailTaskCard");
 const progressFormEl = document.getElementById("progressForm");
 const progressInputEl = document.getElementById("progressInput");
 const progressSubmitBtnEl = document.getElementById("progressSubmitBtn");
+const progressCancelEditBtnEl = document.getElementById("progressCancelEditBtn");
 const detailStatusEl = document.getElementById("detailStatus");
 const progressListEl = document.getElementById("progressList");
+
+/** 正在编辑的进展条目 id；为空表示「追加新进展」模式 */
+let editingProgressId = "";
 
 const qp = new URLSearchParams(location.search);
 const taskId = String(qp.get("id") || "").trim();
@@ -33,6 +37,14 @@ const I18N = {
     uploadOk: "文件已插入",
     uploadFail: "文件上传失败",
     emptyProgress: "请先输入进展内容",
+    saveProgress: "保存修改",
+    cancelEdit: "取消编辑",
+    editProgress: "编辑",
+    deleteProgress: "删除",
+    confirmDeleteProgress: "确定删除这条进展记录？",
+    updateOk: "进展已更新",
+    deleteOk: "进展已删除",
+    editedAt: "已编辑",
   },
   en: {
     title: "Task Detail",
@@ -57,6 +69,14 @@ const I18N = {
     uploadOk: "File inserted",
     uploadFail: "File upload failed",
     emptyProgress: "Please enter progress content",
+    saveProgress: "Save changes",
+    cancelEdit: "Cancel edit",
+    editProgress: "Edit",
+    deleteProgress: "Delete",
+    confirmDeleteProgress: "Delete this progress entry?",
+    updateOk: "Progress updated",
+    deleteOk: "Progress deleted",
+    editedAt: "Edited",
   },
   ja: {
     title: "タスク詳細",
@@ -81,6 +101,14 @@ const I18N = {
     uploadOk: "ファイルを挿入しました",
     uploadFail: "ファイルアップロード失敗",
     emptyProgress: "進捗内容を入力してください",
+    saveProgress: "変更を保存",
+    cancelEdit: "編集をキャンセル",
+    editProgress: "編集",
+    deleteProgress: "削除",
+    confirmDeleteProgress: "この進捗記録を削除しますか？",
+    updateOk: "進捗を更新しました",
+    deleteOk: "進捗を削除しました",
+    editedAt: "編集済",
   },
 };
 
@@ -289,12 +317,22 @@ function markdownForUploadedFile(file, url) {
   return `[${label}](${url})`;
 }
 
+function refreshProgressFormUi() {
+  if (progressSubmitBtnEl) {
+    progressSubmitBtnEl.textContent = editingProgressId ? t("saveProgress") : t("submit");
+  }
+  if (progressCancelEditBtnEl) {
+    progressCancelEditBtnEl.hidden = !editingProgressId;
+    progressCancelEditBtnEl.textContent = t("cancelEdit");
+  }
+}
+
 function applyStaticI18n() {
   document.getElementById("detailPageTitle").textContent = t("title");
   document.getElementById("backToTask").textContent = t("back");
   document.getElementById("progressLabel").textContent = t("progressLabel");
-  document.getElementById("progressSubmitBtn").textContent = t("submit");
   document.getElementById("progressListTitle").textContent = t("progressListTitle");
+  refreshProgressFormUi();
   const mdGuideTitleEl = document.getElementById("progressMdGuideTitle");
   const mdGuideBodyEl = document.getElementById("progressMdGuideBody");
   if (mdGuideTitleEl) mdGuideTitleEl.textContent = t("mdGuideTitle");
@@ -321,15 +359,78 @@ function renderProgress(list) {
     return;
   }
   for (const it of list) {
+    const pid = String(it.id || "").trim();
     const card = document.createElement("article");
     card.className = "progress-item";
-    const time = document.createElement("div");
-    time.className = "progress-item-time";
-    time.textContent = new Date(it.createdAt || Date.now()).toLocaleString();
+    if (editingProgressId && pid === editingProgressId) {
+      card.classList.add("is-editing");
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "progress-item-actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = t("editProgress");
+    editBtn.addEventListener("click", () => {
+      editingProgressId = pid;
+      progressInputEl.value = String(it.content || "");
+      refreshProgressFormUi();
+      renderProgress(list);
+      progressInputEl.focus();
+      progressFormEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "progress-delete-btn";
+    delBtn.textContent = t("deleteProgress");
+    delBtn.addEventListener("click", async () => {
+      if (!pid || !window.confirm(t("confirmDeleteProgress"))) return;
+      setStatus(t("loading"), false);
+      try {
+        const res = await fetch(
+          `/api/tasks/${encodeURIComponent(taskId)}/progress/${encodeURIComponent(pid)}`,
+          { method: "DELETE" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setStatus(data.error || t("requestFail"), true);
+          return;
+        }
+        if (editingProgressId === pid) {
+          editingProgressId = "";
+          progressInputEl.value = "";
+          refreshProgressFormUi();
+        }
+        setStatus(t("deleteOk"), false);
+        renderTaskCard(data.item);
+        renderProgress(data.item.progress || []);
+      } catch (err) {
+        setStatus(err.message || t("requestFail"), true);
+      }
+    });
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    const meta = document.createElement("div");
+    meta.className = "progress-item-meta";
+    const createdLine = new Date(it.createdAt || Date.now()).toLocaleString();
+    const upd = String(it.updatedAt || "").trim();
+    const cr = String(it.createdAt || "").trim();
+    if (upd && upd !== cr) {
+      meta.appendChild(document.createTextNode(`${createdLine} · `));
+      const editedSpan = document.createElement("span");
+      editedSpan.className = "progress-item-edited";
+      editedSpan.textContent = `${t("editedAt")} ${new Date(upd).toLocaleString()}`;
+      meta.appendChild(editedSpan);
+    } else {
+      meta.textContent = createdLine;
+    }
+
     const body = document.createElement("div");
     body.className = "md";
     body.innerHTML = renderMarkdown(it.content || "");
-    card.appendChild(time);
+    card.appendChild(actions);
+    card.appendChild(meta);
     card.appendChild(body);
     progressListEl.appendChild(card);
   }
@@ -366,8 +467,12 @@ progressFormEl?.addEventListener("submit", async (e) => {
   }
   setStatus(t("loading"), false);
   try {
-    const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/progress`, {
-      method: "POST",
+    const isEdit = Boolean(editingProgressId);
+    const url = isEdit
+      ? `/api/tasks/${encodeURIComponent(taskId)}/progress/${encodeURIComponent(editingProgressId)}`
+      : `/api/tasks/${encodeURIComponent(taskId)}/progress`;
+    const res = await fetch(url, {
+      method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
@@ -377,13 +482,22 @@ progressFormEl?.addEventListener("submit", async (e) => {
       return;
     }
     progressInputEl.value = "";
-    setStatus(t("addOk"), false);
-    // 追加成功后局部刷新当前详情，无需整页 reload
+    editingProgressId = "";
+    refreshProgressFormUi();
+    setStatus(isEdit ? t("updateOk") : t("addOk"), false);
     renderTaskCard(data.item);
     renderProgress(data.item.progress || []);
   } catch (err) {
     setStatus(err.message || t("requestFail"), true);
   }
+});
+
+progressCancelEditBtnEl?.addEventListener("click", () => {
+  editingProgressId = "";
+  progressInputEl.value = "";
+  refreshProgressFormUi();
+  setStatus("", false);
+  loadDetail();
 });
 
 progressInputEl?.addEventListener("paste", async (e) => {

@@ -42,6 +42,10 @@ body {
   padding: 0.8rem 0.9rem;
 }
 
+.progress-item.is-editing {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--td-accent) 45%, transparent);
+}
+
 .task-card-meta {
   color: var(--td-muted);
   font-size: 0.84rem;
@@ -73,10 +77,52 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--td-accent) 18%, transparent);
 }
 
-.progress-form button {
+.progress-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
   margin-top: 0.5rem;
+}
+
+.progress-form button {
   width: fit-content;
   color: var(--td-accent);
+}
+
+.progress-cancel-btn {
+  color: var(--td-muted) !important;
+}
+
+.progress-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.progress-item-actions button {
+  border: 1px solid var(--td-border);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+  background: var(--td-bg);
+  color: var(--td-accent);
+  cursor: pointer;
+}
+
+.progress-item-actions button.progress-delete-btn {
+  color: #f87171;
+}
+
+.progress-item-meta {
+  font-size: 0.8rem;
+  color: var(--td-muted);
+  margin-bottom: 0.45rem;
+}
+
+.progress-item-edited {
+  opacity: 0.85;
 }
 
 .md-guide {
@@ -114,12 +160,6 @@ body {
 .progress-list {
   display: grid;
   gap: 0.65rem;
-}
-
-.progress-item-time {
-  font-size: 0.8rem;
-  color: var(--td-muted);
-  margin-bottom: 0.45rem;
 }
 
 .md p {
