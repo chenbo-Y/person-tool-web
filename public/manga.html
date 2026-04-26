@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>漫画式图片浏览</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="/css/manga.css?v=3" />
+    <link rel="stylesheet" href="/css/ui-bootstrap.css?v=1" />
+    <link rel="stylesheet" href="/css/file-tag-panel.css?v=2" />
+  </head>
+  <body>
+    <div class="manga-page container-xl py-3">
+      <nav class="top-nav" aria-label="页面切换">
+        <a href="/" class="nav-link">关键字搜索</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/manga.html" class="nav-link nav-link-current">漫画式图片浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/video.html" class="nav-link">视频浏览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/overview.html" class="nav-link">标注一览</a>
+        <span class="nav-sep" aria-hidden="true">·</span>
+        <a href="/task.html" class="nav-link">任务</a>
+      </nav>
+
+      <header class="manga-header">
+        <h1>漫画式图片浏览</h1>
+        <p class="sub">
+          纵向连续阅读：图片按文件名排序；可在工具栏切换<strong>横排多列</strong>网格，同屏浏览多页。仅加载<strong>当前文件夹</strong>内一层，不进入子目录。点击图片或「在资源管理器中打开」可在资源管理器中定位该文件。也可使用
+          <code>manga.html?path=目录&amp;layout=grid-3</code>（<code>layout</code> 可选 <code>vertical</code>、<code>grid-2</code>～<code>grid-4</code>）自动填入并加载。每张图下方可编辑<strong>标签与备注</strong>，与搜索页共用本机
+          <code>data/file-tags.json</code>。工具栏可<strong>多选删除</strong>；单张图下亦有「删除文件」（均从磁盘永久删除，不可撤销）。
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <label class="field">
+          <span>图片目录（绝对路径）</span>
+          <input
+            id="mangaDirPath"
+            type="text"
+            placeholder="例如 C:\漫画\某话"
+            autocomplete="off"
+          />
+        </label>
+        <label class="field field-layout">
+          <span>布局</span>
+          <select id="mangaLayout" aria-label="阅读布局">
+            <option value="vertical">纵向单列（默认）</option>
+            <option value="grid-2">横排 2 列</option>
+            <option value="grid-3">横排 3 列</option>
+            <option value="grid-4">横排 4 列</option>
+          </select>
+        </label>
+        <button type="button" class="btn-load" id="mangaLoadBtn">加载</button>
+        <div class="manga-bulk-bar" id="mangaBulkBar" hidden>
+          <span class="manga-bulk-label">多选</span>
+          <button type="button" class="btn-bulk" id="mangaSelectAll">全选</button>
+          <button type="button" class="btn-bulk" id="mangaSelectNone">取消全选</button>
+          <button type="button" class="btn-bulk btn-bulk-danger" id="mangaDeleteSelected" disabled>
+            删除选中
+          </button>
+          <span id="mangaSelectedCount" class="manga-selected-count" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <p id="mangaStatus" class="status-line" aria-live="polite"></p>
+      <main id="comicStrip" class="comic-strip" aria-label="图片内容"></main>
+    </div>
+    <script src="/js/i18n.js?v=1"></script>
+    <script src="/js/file-tag-panel.js?v=2"></script>
+    <script src="/js/manga.js?v=9"></script>
+  </body>
+</html>

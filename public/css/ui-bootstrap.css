@@ -1,0 +1,115 @@
+:root {
+  --app-panel-radius: 12px;
+}
+
+body {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0));
+}
+
+.top-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  margin: 0;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--app-panel-radius);
+  background: rgba(99, 102, 241, 0.04);
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  width: min(14rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  z-index: 1020;
+}
+
+.top-nav .nav-link {
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.75rem;
+  text-decoration: none;
+}
+
+.top-nav .nav-link:hover {
+  text-decoration: none;
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.top-nav .nav-link-current {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.top-nav .nav-sep {
+  display: none;
+}
+
+:is(.page, .manga-page, .video-page, .ov-page) {
+  display: block;
+  padding-left: 15rem;
+}
+
+:is(.page, .manga-page, .video-page, .ov-page) > .top-nav {
+  grid-column: auto;
+}
+
+:is(.page, .manga-page, .video-page, .ov-page) > :not(.top-nav) {
+  grid-column: auto;
+}
+
+.form,
+.toolbar,
+.ov-toolbar,
+.ov-tag-filter,
+.recent-block {
+  border-radius: var(--app-panel-radius);
+}
+
+input[type="text"],
+input[type="search"],
+select,
+textarea {
+  border-radius: 0.55rem !important;
+}
+
+button,
+.btn-load,
+.btn-bulk,
+.btn-open-loc,
+.video-open-loc,
+.video-file-rename,
+.video-file-del,
+.btn-reveal,
+.btn-rename,
+.btn-delete {
+  border-radius: 0.55rem !important;
+}
+
+@media (max-width: 900px) {
+  :is(.page, .manga-page, .video-page, .ov-page) {
+    display: block;
+    padding-left: 0;
+  }
+
+  :is(.page, .manga-page, .video-page, .ov-page) > .top-nav,
+  :is(.page, .manga-page, .video-page, .ov-page) > :not(.top-nav) {
+    grid-column: 1;
+  }
+
+  .top-nav {
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.4rem;
+  }
+}
