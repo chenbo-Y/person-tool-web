@@ -64,6 +64,51 @@ test("task CRUD and progress should work with isolated generated data", async ()
   assert.equal(delBody.ok, true);
 });
 
+test("task progress should be updatable and deletable", async () => {
+  const createRes = await fetch(`${ctx.baseUrl}/api/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: "progress-edit-delete-test",
+      detail: "for progress mutation api",
+    }),
+  });
+  assert.equal(createRes.status, 200);
+  const { item: created } = await createRes.json();
+  const id = created.id;
+
+  const addRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}/progress`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: "first version" }),
+  });
+  assert.equal(addRes.status, 200);
+  const addBody = await addRes.json();
+  const pid = addBody.item.progress[0].id;
+  assert.equal(typeof pid, "string");
+  assert.ok(pid.length > 0);
+
+  const putRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}/progress/${encodeURIComponent(pid)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: "second version" }),
+  });
+  assert.equal(putRes.status, 200);
+  const putBody = await putRes.json();
+  assert.equal(putBody.item.progress.some((p) => p.id === pid && p.content === "second version"), true);
+  assert.equal(typeof putBody.item.progress.find((p) => p.id === pid).updatedAt, "string");
+
+  const delRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}/progress/${encodeURIComponent(pid)}`, {
+    method: "DELETE",
+  });
+  assert.equal(delRes.status, 200);
+  const delBody = await delRes.json();
+  assert.equal(delBody.item.progress.length, 0);
+
+  const cleanup = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}`, { method: "DELETE" });
+  assert.equal(cleanup.status, 200);
+});
+
 test("task create should reject empty title", async () => {
   const res = await fetch(`${ctx.baseUrl}/api/tasks`, {
     method: "POST",

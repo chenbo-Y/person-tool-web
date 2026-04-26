@@ -23,6 +23,7 @@ import * as tagStore from "./tags-store.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const BASE_PORT = Number(process.env.PORT) || 3847;
+const LISTEN_HOST = String(process.env.HOST || "0.0.0.0").trim() || "0.0.0.0";
 const API_ACCESS_LOG_SKIP = new Set(["/api/image-file", "/api/video-file"]);
 const cnHolidayBookPromise = ChineseHolidays.ready({ offline: true }).catch(() => null);
 
@@ -89,7 +90,14 @@ function formatLocalDate(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-app.use(express.json({ limit: "1mb" }));
+// 任务附件通过 DataURL 走 JSON 上传，体积会膨胀（约 1.3x），这里给到更高上限。
+app.use(express.json({ limit: String(process.env.KW_WEB_JSON_LIMIT || "30mb") }));
+app.use((err, _req, res, next) => {
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({ error: "请求体过大，请减小文件或调高上传上限" });
+  }
+  return next(err);
+});
 app.use((req, res, next) => {
   if (!req.path.startsWith("/api/")) return next();
   if (API_ACCESS_LOG_SKIP.has(req.path)) return next();
@@ -539,9 +547,9 @@ function listenFrom(port, attemptsLeft) {
       process.exit(1);
     }
   });
-  server.listen(port, "127.0.0.1", () => {
+  server.listen(port, LISTEN_HOST, () => {
     const base = `http://127.0.0.1:${port}`;
-    logger.info("server listening", { port, logDir: logger.logDir(), base });
+    logger.info("server listening", { port, host: LISTEN_HOST, logDir: logger.logDir(), base });
     // console.log(`搜索 ${base}/  漫画 ${base}/manga.html  视频 ${base}/video.html  标注一览 ${base}/overview.html`);
     // console.log(`运行日志目录: ${logger.logDir()}（按天 app-YYYY-MM-DD.log；可用 KW_WEB_NO_LOG=1 关闭写文件）`);
   });

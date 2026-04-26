@@ -148,6 +148,26 @@ function normalizeProgressInput(body) {
   };
 }
 
+/** 为历史数据中没有 id 的进展条目补全 id，便于后续编辑/删除 */
+function ensureProgressIdsOnTask(task) {
+  if (!Array.isArray(task.progress)) task.progress = [];
+  let changed = false;
+  for (let i = 0; i < task.progress.length; i += 1) {
+    const p = task.progress[i];
+    if (!p || typeof p !== "object") continue;
+    if (!String(p.id || "").trim()) {
+      p.id = `progress_${Date.now().toString(36)}_${i}_${Math.random().toString(36).slice(2, 10)}`;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function normalizeProgressContent(body) {
+  const content = normalizeText(body?.content, 12000);
+  return content || null;
+}
+
 export function registerTaskRoutes(app, { logger }) {
   // 任务附件上传：前端以 DataURL 传文件（图片/文档），后端落盘后返回可访问 URL
   async function handleTaskFileUpload(req, res) {
@@ -316,13 +336,22 @@ export function registerTaskRoutes(app, { logger }) {
     const id = String(req.params.id || "").trim();
     if (!id) return res.status(400).json({ error: "缺少 id" });
     try {
-      const items = await readTasksRaw();
-      const hit = items.find((x) => String(x.id) === id);
+      const hit = await withWriteLock(async () => {
+        const items = await readTasksRaw();
+        const idx = items.findIndex((x) => String(x.id) === id);
+        if (idx < 0) return null;
+        const task = items[idx];
+        if (!Array.isArray(task.progress)) task.progress = [];
+        if (typeof task.completedAt !== "string") task.completedAt = "";
+        if (!Array.isArray(task.tags)) task.tags = [];
+        if (ensureProgressIdsOnTask(task)) {
+          task.updatedAt = nowIso();
+          await writeTasksRaw(items);
+        }
+        task.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+        return task;
+      });
       if (!hit) return res.status(404).json({ error: "任务不存在" });
-      if (!Array.isArray(hit.progress)) hit.progress = [];
-      if (typeof hit.completedAt !== "string") hit.completedAt = "";
-      if (!Array.isArray(hit.tags)) hit.tags = [];
-      hit.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
       res.json({ ok: true, item: hit });
     } catch (e) {
       res.status(500).json({ error: e.message || "读取任务详情失败" });
@@ -347,10 +376,70 @@ export function registerTaskRoutes(app, { logger }) {
         return items[idx];
       });
       if (!item) return res.status(404).json({ error: "任务不存在" });
+      item.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
       logger?.info?.("task-progress-add", { id, pid: entry.id });
       res.json({ ok: true, item });
     } catch (e) {
       res.status(500).json({ error: e.message || "追加进展失败" });
+    }
+  });
+
+  app.put("/api/tasks/:id/progress/:pid", async (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const pid = String(req.params.pid || "").trim();
+    if (!id || !pid) return res.status(400).json({ error: "缺少任务 id 或进展 id" });
+    const content = normalizeProgressContent(req.body || {});
+    if (!content) return res.status(400).json({ error: "content 不能为空" });
+    try {
+      const item = await withWriteLock(async () => {
+        const items = await readTasksRaw();
+        const idx = items.findIndex((x) => String(x.id) === id);
+        if (idx < 0) return null;
+        const task = items[idx];
+        if (!Array.isArray(task.progress)) task.progress = [];
+        ensureProgressIdsOnTask(task);
+        const pidx = task.progress.findIndex((p) => p && String(p.id) === pid);
+        if (pidx < 0) return null;
+        task.progress[pidx].content = content;
+        task.progress[pidx].updatedAt = nowIso();
+        task.updatedAt = nowIso();
+        await writeTasksRaw(items);
+        return task;
+      });
+      if (!item) return res.status(404).json({ error: "任务或进展不存在" });
+      item.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+      logger?.info?.("task-progress-update", { id, pid });
+      res.json({ ok: true, item });
+    } catch (e) {
+      res.status(500).json({ error: e.message || "更新进展失败" });
+    }
+  });
+
+  app.delete("/api/tasks/:id/progress/:pid", async (req, res) => {
+    const id = String(req.params.id || "").trim();
+    const pid = String(req.params.pid || "").trim();
+    if (!id || !pid) return res.status(400).json({ error: "缺少任务 id 或进展 id" });
+    try {
+      const item = await withWriteLock(async () => {
+        const items = await readTasksRaw();
+        const idx = items.findIndex((x) => String(x.id) === id);
+        if (idx < 0) return null;
+        const task = items[idx];
+        if (!Array.isArray(task.progress)) task.progress = [];
+        ensureProgressIdsOnTask(task);
+        const before = task.progress.length;
+        task.progress = task.progress.filter((p) => p && String(p.id) !== pid);
+        if (task.progress.length === before) return null;
+        task.updatedAt = nowIso();
+        await writeTasksRaw(items);
+        return task;
+      });
+      if (!item) return res.status(404).json({ error: "任务或进展不存在" });
+      item.progress.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+      logger?.info?.("task-progress-delete", { id, pid });
+      res.json({ ok: true, item });
+    } catch (e) {
+      res.status(500).json({ error: e.message || "删除进展失败" });
     }
   });
 }
