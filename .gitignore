@@ -1,0 +1,25 @@
+# Runtime / dependencies
+node_modules/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Sensitive local data
+data/**
+!data/.gitkeep
+
+# Environment / secret files
+.env
+.env.*
+*.env
+!.env.example
+!.env.sample
+
+# Local editor/system artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
