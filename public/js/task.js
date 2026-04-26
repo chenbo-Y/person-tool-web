@@ -91,6 +91,7 @@ const I18N = {
     typeHint: "类型",
     tagsHint: "标签",
     dueHint: "截止",
+    createdHint: "创建",
     completedHint: "完成",
     statusDone: "已完成",
     statusTodo: "未完成",
@@ -100,6 +101,7 @@ const I18N = {
     btnDelete: "删除",
     btnDetail: "详情",
     deleteConfirm: "确定删除该任务？此操作不可撤销。",
+    needSaveBeforeAttachment: "请先保存任务后再上传附件（新建任务请点击「新增任务」保存，再点「编辑」插入图片或文件）。",
     noVisibleTask: "当前筛选下暂无任务。",
     calendarTitle: "任务日历",
     calendarPrev: "上月",
@@ -122,6 +124,7 @@ const I18N = {
     calendarMonthLabel: (y, m) => `${y}年${m}月`,
     calendarMore: (n) => `+${n}项`,
     weekdays: ["日", "一", "二", "三", "四", "五", "六"],
+    calendarPickDueOk: (d) => `已选择截止日：${d}，请在下方填写任务并保存`,
   },
   en: {
     pageTitle: "Task Manager",
@@ -167,6 +170,7 @@ const I18N = {
     typeHint: "Type",
     tagsHint: "Tags",
     dueHint: "Due",
+    createdHint: "Created",
     completedHint: "Completed",
     statusDone: "Done",
     statusTodo: "Todo",
@@ -176,6 +180,8 @@ const I18N = {
     btnDelete: "Delete",
     btnDetail: "Detail",
     deleteConfirm: "Delete this task? This action cannot be undone.",
+    needSaveBeforeAttachment:
+      "Save the task first, then attach files (click Add Task to create it, then Edit to paste or drag files).",
     noVisibleTask: "No tasks under current filter.",
     calendarTitle: "Task Calendar",
     calendarPrev: "Prev",
@@ -198,6 +204,7 @@ const I18N = {
     calendarMonthLabel: (y, m) => `${y}-${String(m).padStart(2, "0")}`,
     calendarMore: (n) => `+${n} more`,
     weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    calendarPickDueOk: (d) => `Due date set to ${d}. Fill in the form below and save.`,
   },
   ja: {
     pageTitle: "タスク管理",
@@ -243,6 +250,7 @@ const I18N = {
     typeHint: "種類",
     tagsHint: "タグ",
     dueHint: "期限",
+    createdHint: "作成",
     completedHint: "完了",
     statusDone: "完了",
     statusTodo: "未完了",
@@ -252,6 +260,8 @@ const I18N = {
     btnDelete: "削除",
     btnDetail: "詳細",
     deleteConfirm: "このタスクを削除しますか？元に戻せません。",
+    needSaveBeforeAttachment:
+      "先にタスクを保存してから添付してください（新規は「タスク追加」で保存後、「編集」から画像やファイルを追加）。",
     noVisibleTask: "現在の表示条件ではタスクがありません。",
     calendarTitle: "タスクカレンダー",
     calendarPrev: "前月",
@@ -274,6 +284,7 @@ const I18N = {
     calendarMonthLabel: (y, m) => `${y}年${m}月`,
     calendarMore: (n) => `他 ${n} 件`,
     weekdays: ["日", "月", "火", "水", "木", "金", "土"],
+    calendarPickDueOk: (d) => `期限を ${d} に設定しました。下のフォームに入力して保存してください`,
   },
 };
 
@@ -360,6 +371,27 @@ function toDateKeyFromIso(iso) {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** 日历格选中的 YYYY-MM-DD → datetime-local（默认当天 18:00） */
+function dateKeyToDeadlineDatetimeLocal(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || "").trim())) return "";
+  return `${String(dateKey).trim()}T18:00`;
+}
+
+function bindCalendarDayPick(cell, dateKey) {
+  cell.classList.add("task-calendar-day--pickable");
+  cell.dataset.dateKey = dateKey;
+  cell.addEventListener("click", (e) => {
+    if (e.target.closest("a")) return;
+    resetForm();
+    taskDueInputEl.value = dateKeyToDeadlineDatetimeLocal(dateKey);
+    setStatus(t("calendarPickDueOk", dateKey), false);
+    taskFormEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => {
+      taskTitleInputEl?.focus();
+    });
+  });
 }
 
 function renderCalendar(items) {
@@ -500,6 +532,7 @@ function renderCalendar(items) {
       itemsWrap.appendChild(more);
     }
     cell.appendChild(itemsWrap);
+    bindCalendarDayPick(cell, key);
     taskCalendarGridEl.appendChild(cell);
   }
 }
@@ -680,8 +713,8 @@ function renderMarkdown(md) {
   if (!src.trim()) return "";
   const applyInline = (text) =>
     String(text || "")
-      .replace(/!\[([^\]]*)\]\(((?:\/api\/task-(?:assets|files)\/[^\s)]+)|https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" />')
-      .replace(/\[([^\]]+)\]\(((?:\/api\/task-(?:assets|files)\/[^\s)]+)|https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+      .replace(/!\[([^\]]*)\]\(((?:\/api\/task-(?:assets|files)\/\S+)|https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" />')
+      .replace(/\[([^\]]+)\]\(((?:\/api\/task-(?:assets|files)\/\S+)|https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/~~([^~]+)~~/g, "<del>$1</del>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -847,6 +880,7 @@ function exportVisibleTasksToExcel() {
     [t("fieldTags")]: Array.isArray(it.tags) ? it.tags.join(", ") : "",
     [t("filterStatusLabel")]: it.status === "done" ? t("statusDone") : t("statusTodo"),
     [t("fieldDue")]: it.dueAt ? new Date(it.dueAt).toLocaleString() : "",
+    [t("createdHint")]: it.createdAt ? new Date(it.createdAt).toLocaleString() : "",
     [t("completedHint")]: it.completedAt ? new Date(it.completedAt).toLocaleString() : "",
     [t("fieldDetail")]: it.detail || "",
     Updated: it.updatedAt ? new Date(it.updatedAt).toLocaleString() : "",
@@ -870,14 +904,17 @@ function insertTextAtCursor(el, text) {
 }
 
 async function uploadTaskFile(file) {
-  // 复用后端 /api/task-files：统一附件落盘与 URL 管理
+  const tid = editingId;
+  if (!tid) {
+    throw new Error(t("needSaveBeforeAttachment"));
+  }
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(new Error("read failed"));
     reader.readAsDataURL(file);
   });
-  const res = await fetch("/api/task-files", {
+  const res = await fetch(`/api/tasks/${encodeURIComponent(tid)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dataUrl, name: file.name || "" }),
@@ -937,7 +974,7 @@ function renderTasks(items) {
   }
   for (const it of visibleItems) {
     const card = document.createElement("article");
-    card.className = "task-item";
+    card.className = `task-item ${it.status === "done" ? "task-item--done" : "task-item--todo"}`;
     const head = document.createElement("div");
     head.className = "task-item-head";
     const title = document.createElement("a");
@@ -952,9 +989,10 @@ function renderTasks(items) {
     const meta = document.createElement("div");
     meta.className = "task-item-meta";
     const dueText = it.dueAt ? new Date(it.dueAt).toLocaleString() : "-";
+    const createdText = it.createdAt ? new Date(it.createdAt).toLocaleString() : "-";
     const completedText = it.completedAt ? new Date(it.completedAt).toLocaleString() : "-";
     const tagsText = Array.isArray(it.tags) && it.tags.length ? it.tags.join(", ") : "-";
-    meta.textContent = `${t("typeHint")}: ${it.type || "-"}  ·  ${t("tagsHint")}: ${tagsText}  ·  ${t("dueHint")}: ${dueText}  ·  ${t("completedHint")}: ${completedText}`;
+    meta.textContent = `${t("typeHint")}: ${it.type || "-"}  ·  ${t("tagsHint")}: ${tagsText}  ·  ${t("createdHint")}: ${createdText}  ·  ${t("dueHint")}: ${dueText}  ·  ${t("completedHint")}: ${completedText}`;
 
     const detail = document.createElement("div");
     detail.className = "task-item-detail";
@@ -965,6 +1003,7 @@ function renderTasks(items) {
 
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
+    toggleBtn.className = "task-item-action-btn task-item-action-btn--accent";
     toggleBtn.textContent = it.status === "done" ? t("btnTodo") : t("btnDone");
     toggleBtn.addEventListener("click", async () => {
       await saveTask({
@@ -975,6 +1014,7 @@ function renderTasks(items) {
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
+    editBtn.className = "task-item-action-btn task-item-action-btn--neutral";
     editBtn.textContent = t("btnEdit");
     editBtn.addEventListener("click", () => {
       editingId = it.id;
@@ -989,6 +1029,7 @@ function renderTasks(items) {
 
     const delBtn = document.createElement("button");
     delBtn.type = "button";
+    delBtn.className = "task-item-action-btn task-item-action-btn--danger";
     delBtn.textContent = t("btnDelete");
     delBtn.addEventListener("click", async () => {
       if (!confirm(t("deleteConfirm"))) return;
@@ -1008,6 +1049,7 @@ function renderTasks(items) {
 
     const detailBtn = document.createElement("button");
     detailBtn.type = "button";
+    detailBtn.className = "task-item-action-btn task-item-action-btn--neutral";
     detailBtn.textContent = t("btnDetail");
     detailBtn.addEventListener("click", () => {
       window.location.href = `/task-detail.html?id=${encodeURIComponent(it.id)}`;

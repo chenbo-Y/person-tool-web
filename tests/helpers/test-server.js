@@ -49,8 +49,11 @@ export function setupIsolatedServer() {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "person-tool-web-test-"));
     const tempDataDir = path.join(tempDir, "data");
     const tempTasksFile = path.join(tempDataDir, "tasks.json");
-    const tempTaskAssetDir = path.join(tempDataDir, "task-assets");
+    const tempTaskFilesBase = path.join(tempDataDir, "task");
+    const tempLegacyAssets = path.join(tempDataDir, "task-assets");
     await fs.mkdir(tempDataDir, { recursive: true });
+    await fs.mkdir(tempTaskFilesBase, { recursive: true });
+    await fs.mkdir(tempLegacyAssets, { recursive: true });
     await fs.writeFile(tempTasksFile, "[]", "utf8");
 
     const port = await getFreePort();
@@ -63,7 +66,8 @@ export function setupIsolatedServer() {
         KW_WEB_NO_LOG: "1",
         KW_WEB_LOG_LEVEL: "error",
         KW_WEB_TASKS_FILE: tempTasksFile,
-        KW_WEB_TASK_ASSET_DIR: tempTaskAssetDir,
+        KW_WEB_TASK_FILES_BASE: tempTaskFilesBase,
+        KW_WEB_TASK_LEGACY_ASSETS: tempLegacyAssets,
       },
       stdio: "ignore",
     });

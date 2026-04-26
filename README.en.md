@@ -42,7 +42,8 @@ After startup, the terminal prints local URLs, for example:
 
 - Tags, notes, and ratings are stored in: `data/file-tags.json`
 - Tasks and progress logs are stored in: `data/tasks.json`
-- Task detail images are stored in: `data/task-assets/`
+- Task attachments (images/files) are stored per task under: `data/task/<taskId>/` (removed when the task is deleted)
+- Legacy flat folder `data/task-assets/` is still read for old Markdown links
 - Runtime logs are written to: `logs/app-YYYY-MM-DD.log`
 
 Environment variables:

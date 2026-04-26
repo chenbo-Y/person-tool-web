@@ -29,6 +29,7 @@ const I18N = {
     noProgress: "暂无进展记录",
     taskType: "类型",
     taskDue: "截止",
+    taskCreated: "创建时间",
     taskCompleted: "完成",
     taskStatus: "状态",
     done: "已完成",
@@ -61,6 +62,7 @@ const I18N = {
     noProgress: "No progress yet",
     taskType: "Type",
     taskDue: "Due",
+    taskCreated: "Created",
     taskCompleted: "Completed",
     taskStatus: "Status",
     done: "Done",
@@ -93,6 +95,7 @@ const I18N = {
     noProgress: "進捗記録はまだありません",
     taskType: "種類",
     taskDue: "期限",
+    taskCreated: "作成日時",
     taskCompleted: "完了",
     taskStatus: "状態",
     done: "完了",
@@ -134,8 +137,8 @@ function renderMarkdown(md) {
   if (!src.trim()) return "";
   const applyInline = (text) =>
     String(text || "")
-      .replace(/!\[([^\]]*)\]\(((?:\/api\/task-(?:assets|files)\/[^\s)]+)|https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" />')
-      .replace(/\[([^\]]+)\]\(((?:\/api\/task-(?:assets|files)\/[^\s)]+)|https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+      .replace(/!\[([^\]]*)\]\(((?:\/api\/task-(?:assets|files)\/\S+)|https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" />')
+      .replace(/\[([^\]]+)\]\(((?:\/api\/task-(?:assets|files)\/\S+)|https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/~~([^~]+)~~/g, "<del>$1</del>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -297,7 +300,7 @@ async function uploadTaskFile(file) {
     reader.onerror = () => reject(new Error("read failed"));
     reader.readAsDataURL(file);
   });
-  const res = await fetch("/api/task-files", {
+  const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/task-files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dataUrl, name: file.name || "" }),
@@ -340,12 +343,14 @@ function applyStaticI18n() {
 }
 
 function renderTaskCard(task) {
+  detailTaskCardEl.className = `task-card ${task.status === "done" ? "task-card--done" : "task-card--todo"}`;
+  const created = task.createdAt ? new Date(task.createdAt).toLocaleString() : "-";
   const due = task.dueAt ? new Date(task.dueAt).toLocaleString() : "-";
   const completed = task.completedAt ? new Date(task.completedAt).toLocaleString() : "-";
   const status = task.status === "done" ? t("done") : t("todo");
   detailTaskCardEl.innerHTML = `
     <h3>${escapeHtml(task.title || "")}</h3>
-    <div class="task-card-meta">${t("taskType")}: ${escapeHtml(task.type || "-")} · ${t("taskDue")}: ${escapeHtml(due)} · ${t("taskCompleted")}: ${escapeHtml(completed)} · ${t("taskStatus")}: ${escapeHtml(status)}</div>
+    <div class="task-card-meta">${t("taskType")}: ${escapeHtml(task.type || "-")} · ${t("taskCreated")}: ${escapeHtml(created)} · ${t("taskDue")}: ${escapeHtml(due)} · ${t("taskCompleted")}: ${escapeHtml(completed)} · ${t("taskStatus")}: ${escapeHtml(status)}</div>
     <div class="md">${renderMarkdown(task.detail || "")}</div>
   `;
 }

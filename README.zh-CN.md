@@ -42,7 +42,8 @@ npm start
 
 - 标签、备注、评分保存在：`data/file-tags.json`
 - 任务与进展保存在：`data/tasks.json`
-- 任务详情图片保存在：`data/task-assets/`
+- 任务附件（图片/文档）按任务分目录：`data/task/<任务ID>/`（删除任务时会一并删除该目录）
+- 旧版扁平目录 `data/task-assets/` 仍用于读取历史 Markdown 中的旧链接
 - 运行日志输出到：`logs/app-YYYY-MM-DD.log`
 
 可通过环境变量控制日志：

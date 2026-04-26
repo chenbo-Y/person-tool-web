@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test \"tests/**/*.test.js\"",
+    "migrate:task-assets": "node scripts/migrate-task-assets.mjs"
   },
   "dependencies": {
     "chardet": "^2.1.1",

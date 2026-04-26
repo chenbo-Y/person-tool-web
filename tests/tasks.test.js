@@ -20,6 +20,9 @@ test("task CRUD and progress should work with isolated generated data", async ()
   assert.equal(createBody.ok, true);
   assert.equal(typeof createBody.item?.id, "string");
   const id = createBody.item.id;
+  assert.equal(typeof createBody.item.createdAt, "string");
+  assert.ok(createBody.item.createdAt.length > 0);
+  const createdAtSnapshot = createBody.item.createdAt;
 
   const updateRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}`, {
     method: "PUT",
@@ -37,6 +40,7 @@ test("task CRUD and progress should work with isolated generated data", async ()
   assert.equal(updateBody.item.status, "done");
   assert.equal(typeof updateBody.item.completedAt, "string");
   assert.ok(updateBody.item.completedAt.length > 0);
+  assert.equal(updateBody.item.createdAt, createdAtSnapshot, "createdAt must not change on update");
 
   const progressRes = await fetch(`${ctx.baseUrl}/api/tasks/${encodeURIComponent(id)}/progress`, {
     method: "POST",
