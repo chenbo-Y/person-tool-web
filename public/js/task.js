@@ -45,6 +45,7 @@ let calendarRegion = "CN";
 const holidayCache = new Map();
 const workingdayCache = new Map();
 const lang = String(window.__kwLang || "zh-CN");
+const TASK_FILTER_STATE_KEY = "kw_task_filter_state_v1";
 
 const I18N = {
   "zh-CN": {
@@ -296,6 +297,46 @@ function t(key, ...args) {
 function setStatus(text, isError) {
   taskStatusEl.textContent = text;
   taskStatusEl.classList.toggle("error", Boolean(isError));
+}
+
+function saveFilterState() {
+  try {
+    const payload = {
+      statusFilter,
+      typeFilter,
+      tagFilters,
+      tagMatchMode,
+      keywordFilter,
+    };
+    sessionStorage.setItem(TASK_FILTER_STATE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function restoreFilterState() {
+  try {
+    const raw = sessionStorage.getItem(TASK_FILTER_STATE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && typeof saved === "object") {
+      statusFilter = saved.statusFilter === "done" || saved.statusFilter === "todo" ? saved.statusFilter : "all";
+      typeFilter = String(saved.typeFilter || "").trim();
+      tagFilters = Array.isArray(saved.tagFilters)
+        ? saved.tagFilters.map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
+      tagMatchMode = saved.tagMatchMode === "and" ? "and" : "or";
+      keywordFilter = String(saved.keywordFilter || "");
+    }
+  } catch {
+    // ignore invalid persisted state
+  }
+}
+
+function syncFilterControlsFromState() {
+  if (taskStatusFilterEl) taskStatusFilterEl.value = statusFilter;
+  if (taskTagMatchModeEl) taskTagMatchModeEl.value = tagMatchMode;
+  if (taskKeywordFilterEl) taskKeywordFilterEl.value = keywordFilter;
 }
 
 function toDatetimeLocalInput(iso) {
@@ -657,6 +698,7 @@ function renderTagFilterChips() {
   allBtn.textContent = t("filterTagAll");
   allBtn.addEventListener("click", () => {
     tagFilters = [];
+    saveFilterState();
     renderTagFilterChips();
     renderTasks(cachedTasks);
   });
@@ -682,6 +724,7 @@ function renderTagFilterChips() {
       const set = new Set(tagFilters.map((x) => x.toLowerCase()));
       if (set.has(low)) tagFilters = tagFilters.filter((x) => x.toLowerCase() !== low);
       else tagFilters = [...tagFilters, tg];
+      saveFilterState();
       renderTagFilterChips();
       renderTasks(cachedTasks);
     });
@@ -1052,6 +1095,7 @@ function renderTasks(items) {
     detailBtn.className = "task-item-action-btn task-item-action-btn--neutral";
     detailBtn.textContent = t("btnDetail");
     detailBtn.addEventListener("click", () => {
+      saveFilterState();
       window.location.href = `/task-detail.html?id=${encodeURIComponent(it.id)}`;
     });
 
@@ -1136,20 +1180,24 @@ taskFormEl.addEventListener("submit", async (e) => {
 
 taskStatusFilterEl?.addEventListener("change", () => {
   statusFilter = taskStatusFilterEl.value || "all";
+  saveFilterState();
   renderTasks(cachedTasks);
 });
 
 taskTypeFilterEl?.addEventListener("change", () => {
   typeFilter = taskTypeFilterEl.value || "";
+  saveFilterState();
   renderTasks(cachedTasks);
 });
 taskTagMatchModeEl?.addEventListener("change", () => {
   tagMatchMode = taskTagMatchModeEl.value === "and" ? "and" : "or";
+  saveFilterState();
   renderTasks(cachedTasks);
 });
 
 taskKeywordFilterEl?.addEventListener("input", () => {
   keywordFilter = taskKeywordFilterEl.value || "";
+  saveFilterState();
   renderTasks(cachedTasks);
 });
 taskCalPrevBtnEl?.addEventListener("click", () => {
@@ -1234,5 +1282,7 @@ taskDetailInputEl?.addEventListener("drop", async (e) => {
   }
 });
 
+restoreFilterState();
 applyStaticI18n();
+syncFilterControlsFromState();
 loadTasks();
